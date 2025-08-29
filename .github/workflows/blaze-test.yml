@@ -6,7 +6,7 @@ on:
 
 jobs:
   bench-blaze:
-    runs-on: leica
+    runs-on: [self-hosted]
     steps:
       - uses: actions/checkout@v4
 
