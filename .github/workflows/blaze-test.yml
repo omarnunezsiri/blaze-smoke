@@ -1,0 +1,30 @@
+name: Blaze Smoke
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: [self-hosted, blaze/ubuntu-22.04]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show runner labels
+        run: |
+          echo "Runner labels: $RUNNER_LABELS"
+          echo "$RUNNER_LABELS" > runner-labels.txt
+
+      - name: Collect system info
+        run: |
+          chmod +x scripts/sysinfo.sh
+          ./scripts/sysinfo.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: blaze-smoke-artifacts
+          path: |
+            sysinfo.txt
+            runner-labels.txt
