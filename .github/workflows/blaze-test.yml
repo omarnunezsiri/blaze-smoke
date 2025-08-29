@@ -53,3 +53,9 @@ jobs:
           name: results-blaze
           path: |
             bench-*-blaze.txt
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          docker system prune -af --volumes || true
+          rm -rf "$RUNNER_WORKSPACE"/* || true
