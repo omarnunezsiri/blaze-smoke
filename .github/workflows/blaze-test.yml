@@ -6,7 +6,7 @@ on:
 
 jobs:
   bench-blaze:
-    runs-on: [self-hosted, blaze/ubuntu-22.04]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
