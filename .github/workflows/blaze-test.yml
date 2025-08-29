@@ -1,30 +1,55 @@
-name: Blaze Smoke
+name: Blaze Bench
 
 on:
   push:
   workflow_dispatch:
 
 jobs:
-  smoke:
+  bench-blaze:
     runs-on: [self-hosted, blaze/ubuntu-22.04]
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show runner labels
+      - name: Env info
         run: |
-          echo "Runner labels: $RUNNER_LABELS"
-          echo "$RUNNER_LABELS" > runner-labels.txt
+          echo "labels=$RUNNER_LABELS" | tee bench-env-blaze.txt
+          nproc | xargs -I{} echo "nproc={}" | tee -a bench-env-blaze.txt
+          uname -a | tee -a bench-env-blaze.txt
+          lscpu || true
 
-      - name: Collect system info
+      - name: CPU bench (sysbench, 60s)
         run: |
-          chmod +x scripts/sysinfo.sh
-          ./scripts/sysinfo.sh
+          docker run --rm --cpuset-cpus=0-$(($(nproc)-1)) ubuntu:22.04 bash -lc '
+            set -e
+            apt-get update -qq
+            apt-get install -y -qq sysbench > /dev/null
+            sysbench cpu --threads=$(nproc) --time=60 run
+          ' | tee bench-sysbench-blaze.txt
 
-      - name: Upload artifacts
+      - name: Crypto bench (OpenSSL)
+        run: |
+          docker run --rm ubuntu:22.04 bash -lc '
+            set -e
+            apt-get update -qq
+            apt-get install -y -qq openssl > /dev/null
+            openssl version
+            openssl speed -multi $(nproc) sha256 sha512 aes-256-cbc rsa2048
+          ' | tee bench-openssl-blaze.txt
+
+      - name: Compression bench (zstd 2GB)
+        run: |
+          docker run --rm -v "$PWD:/w" -w /w ubuntu:22.04 bash -lc '
+            set -e
+            apt-get update -qq
+            apt-get install -y -qq zstd > /dev/null
+            dd if=/dev/zero of=blob.bin bs=1M count=2048 status=none
+            /usr/bin/time -f "elapsed=%E cpu=%P" zstd -T0 -19 blob.bin -o blob.bin.zst
+            ls -lh blob.bin*
+          ' | tee bench-zstd-blaze.txt
+
+      - name: Upload results (Blaze)
         uses: actions/upload-artifact@v4
         with:
-          name: blaze-smoke-artifacts
+          name: results-blaze
           path: |
-            sysinfo.txt
-            runner-labels.txt
+            bench-*-blaze.txt
